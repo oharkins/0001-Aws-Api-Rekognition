@@ -1,0 +1,105 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Aws-Api-Rekognition
+Transform:
+- AWS::Serverless-2016-10-31
+Parameters:
+  CollectionId:
+    Type: String
+    Default: BaseCollection
+Globals:
+  Api:
+    Cors:
+      AllowMethods: '''DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'''
+      AllowHeaders: '''Authorization,Content-Type'''
+      AllowOrigin: '''*'''
+    BinaryMediaTypes:
+    - image~1jpeg
+    - image~1png
+Resources:
+  RekognitionCollection:
+    Type: AWS::Rekognition::Collection
+    Properties:
+      CollectionId:
+        Ref: CollectionId
+  ServiceApi:
+    Type: AWS::Serverless::Api
+    DependsOn: ApiCWLRoleArn
+    Properties:
+      StageName: Prod
+      TracingEnabled: false
+      AccessLogSetting:
+        DestinationArn:
+          Fn::GetAtt:
+          - ApiGatewayExecution
+          - Arn
+        Format: '{"request_time": "$context.requestTime", "resource_path": "$context.resourcePath",
+          "http_method": "$context.httpMethod", "status": "$context.status", "response_length":
+          "$context.responseLength", "response_type": "$context.responseType", "request_id":
+          "$context.requestId", "error_message": "$context.error.message", "validation_error_string":
+          "$context.error.validationErrorString"}'
+      MethodSettings:
+      - MetricsEnabled: true
+        ResourcePath: /*
+        HttpMethod: '*'
+        LoggingLevel: ERROR
+        DataTraceEnabled: true
+      DefinitionBody:
+        Fn::Transform:
+          Name: AWS::Include
+          Parameters:
+            Location: ../../openapi.yaml
+  ApiGatewayExecution:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Sub: /aws/vendedlogs/states/${ServiceApi}
+      RetentionInDays: 90
+  ApiCWLRoleArn:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+        - CloudWatchRole
+        - Arn
+  CloudWatchRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          Action: sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service: apigateway.amazonaws.com
+      Path: /
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+  ImageCollectionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - apigateway.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Policies:
+      - PolicyName: ImageCollectionRolePolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - rekognition:SearchFacesByImage
+            - rekognition:SearchFaces
+            - rekognition:indexFaces
+            Resource:
+            - '*'
+Outputs:
+  WebEndpoint:
+    Description: API Gateway endpoint URL for Prod stage
+    Value:
+      Fn::Sub: https://${ServiceApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/
