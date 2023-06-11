@@ -65,7 +65,22 @@ The AWS SAM CLI reads the application template to determine the API's routes and
 
 **NOTE:** This uses the logical name of the function within the stack. This is the correct name to use when searching logs inside an AWS Lambda function within a CloudFormation stack, even if the deployed function name varies due to CloudFormation's unique resource name generation.
 
-You can find more information and examples about filtering Lambda function logs in the [AWS SAM CLI documentation](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-logging.html).
+## Use the api
+
+To upload an image and add it to the Rekognition collection run this command, make sure you have an image and your are in that folder. 
+```
+curl --location 'https://api.example.com/v1/image/<returnedExternalImageId>' \
+--header 'Content-Type: image/jpeg' \
+--data '@./bob.jpg'
+```
+
+To search the collection run this command
+```
+curl --location --request PUT 'https://api.example.com/v1/image/search' \
+--header 'Content-Type: image/jpeg' \
+--data '@/Users/odis.harkins/Desktop/Corrections/ImagesForDemo/01GQFVTQ617MAJRMG8TRDJ23M4.jpg'
+```
+
 
 ## Cleanup
 
